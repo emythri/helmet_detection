@@ -1,0 +1,89 @@
+<!DOCTYPE html>
+
+<html>
+<head>
+<title>Helmet Detection System</title>
+
+<style>
+
+body{
+    font-family: Arial, sans-serif;
+    background: #f4f4f4;
+    height:100vh;
+    margin:0;
+    display:flex;
+    justify-content:center;
+    align-items:center;
+}
+
+.container{
+    background:white;
+    padding:30px;
+    width:450px;
+    text-align:center;
+    border-radius:10px;
+    box-shadow:0px 10px 25px rgba(0,0,0,0.2);
+}
+
+h2{
+    margin-bottom:20px;
+    color:#333;
+}
+
+input[type=file]{
+    padding:10px;
+    margin-top:10px;
+}
+
+button{
+    margin-top:15px;
+    padding:10px 20px;
+    border:none;
+    background:#4CAF50;
+    color:white;
+    font-size:16px;
+    border-radius:5px;
+    cursor:pointer;
+}
+
+button:hover{
+    background:#45a049;
+}
+
+img{
+    margin-top:20px;
+    border-radius:8px;
+    border:2px solid #ddd;
+}
+
+.result{
+    margin-top:20px;
+}
+
+</style>
+
+</head>
+
+<body>
+
+<div class="container">
+
+<h2>Helmet Detection</h2>
+
+<form method="post" enctype="multipart/form-data">
+<input type="file" name="image" required><br>
+<button type="submit">Detect</button>
+</form>
+
+{% if image %}
+
+<div class="result">
+<h3>Detection Result</h3>
+<img src="{{ url_for('static', filename=image) }}" width="400">
+</div>
+{% endif %}
+
+</div>
+
+</body>
+</html>
