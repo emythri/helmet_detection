@@ -50,7 +50,7 @@ def index():
             input_path = os.path.join(STATIC_DIR, "input.jpg")
             file.save(input_path)
 
-            # Load model
+            # Load YOLO model
             yolo_model = load_model()
 
             # Run detection
@@ -89,5 +89,5 @@ def index():
         return f"Error occurred: {e}"
 
 if __name__ == "__main__":
-    # Gunicorn will handle port on Render
+    # Gunicorn will handle the port on Render
     app.run(host="0.0.0.0")
