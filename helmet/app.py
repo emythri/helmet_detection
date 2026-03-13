@@ -16,7 +16,7 @@ INPUT_PATH = os.path.join(UPLOAD_FOLDER, "input.jpg")
 RESULT_PATH = os.path.join(UPLOAD_FOLDER, "result.jpg")
 
 # Model path
-MODEL_PATH = "models/yolov8n.pt"
+MODEL_PATH = "yolov8n.pt"
 
 # Load YOLO model once
 print("Loading YOLO model...")
@@ -81,3 +81,4 @@ def result_image():
 
 if __name__ == "__main__":
     app.run(host="0.0.0.0", port=5000)
+
