@@ -7,31 +7,26 @@ import urllib.request
 
 print("Starting application...")
 
-torch.set_num_threads(1)
+torch.set_num_threads(1)  # Limit CPU threads
 
 app = Flask(__name__)
 os.makedirs("static", exist_ok=True)
 os.makedirs("models", exist_ok=True)
 
-# Lazy-loaded model
-model = None
 MODEL_PATH = "models/yolov8n.pt"
+model = None
 
 def load_model():
     global model
-
     if model is None:
-        # If model file doesn't exist, download manually
         if not os.path.isfile(MODEL_PATH):
             print("Downloading YOLOv8n weights...")
             url = "https://github.com/ultralytics/assets/releases/download/v8.4.0/yolov8n.pt"
             urllib.request.urlretrieve(url, MODEL_PATH)
             print("Download complete!")
-
         print("Loading YOLO model...")
         model = YOLO(MODEL_PATH)
         print("YOLO model loaded successfully")
-
     return model
 
 @app.route("/", methods=["GET", "POST"])
@@ -50,11 +45,10 @@ def index():
 
             yolo_model = load_model()
 
-            # Run detection
+            print("Running detection...")
             results = yolo_model.predict(input_path, imgsz=320, device="cpu")
-            img = results[0].plot()
+            result_img = results[0].plot()  # This is a NumPy array
 
-            # Extract boxes
             boxes = results[0].boxes.cls.tolist()
             labels = results[0].names
 
@@ -69,7 +63,7 @@ def index():
 
             if person and bike:
                 cv2.putText(
-                    img,
+                    result_img,
                     "Possible No Helmet Rider",
                     (50, 50),
                     cv2.FONT_HERSHEY_SIMPLEX,
@@ -79,7 +73,7 @@ def index():
                 )
 
             result_path = os.path.join("static", "result.jpg")
-            cv2.imwrite(result_path, img)
+            cv2.imwrite(result_path, result_img)
 
             return render_template("index.html", image="result.jpg")
 
@@ -90,4 +84,4 @@ def index():
         return f"Error occurred: {e}"
 
 if __name__ == "__main__":
-    app.run(host="0.0.0.0", port=5000, debug=True)
+    app.run(host="0.0.0.0", port=5000)
