@@ -6,6 +6,7 @@ import torch
 
 print("Starting application...")
 
+# Limit torch threads for CPU efficiency
 torch.set_num_threads(1)
 print("Torch threads limited")
 
@@ -16,20 +17,23 @@ print("Flask app created")
 os.makedirs("static", exist_ok=True)
 print("Static folder checked")
 
-print("Loading YOLO model...")
-model = YOLO("yolov8n.pt")
-print("YOLO model loaded successfully")
+# Lazy load model (will load only on first request)
+model = None
 
+def load_model():
+    global model
+    if model is None:
+        print("Loading YOLO model...")
+        # Use local path to avoid downloading on every deploy
+        model = YOLO("models/yolov8n.torchscript.pt")  # Use TorchScript version
+        print("YOLO model loaded successfully")
+    return model
 
 @app.route("/", methods=["GET", "POST"])
 def index():
-
     print("Route '/' accessed")
-
     try:
-
         if request.method == "POST":
-
             print("POST request received")
 
             if "image" not in request.files:
@@ -47,8 +51,11 @@ def index():
             file.save(input_path)
             print("Image saved to static/input.jpg")
 
+            # Load model only once
+            yolo_model = load_model()
+
             print("Running YOLO detection...")
-            results = model.predict(input_path, imgsz=320, device="cpu")
+            results = yolo_model.predict(input_path, imgsz=320, device="cpu")
             print("Detection completed")
 
             img = results[0].plot()
@@ -63,10 +70,8 @@ def index():
 
             for c in boxes:
                 name = labels[int(c)]
-
                 if name == "person":
                     person = True
-
                 if name == "motorcycle":
                     bike = True
 
@@ -98,7 +103,6 @@ def index():
         print("ERROR OCCURRED:", str(e))
         return f"Error occurred: {str(e)}"
 
-
 if __name__ == "__main__":
     print("Running Flask app...")
-    app.run(debug=True)
+    app.run(host="0.0.0.0", port=5000, debug=True)
