@@ -5,10 +5,10 @@ import cv2
 import torch
 import urllib.request
 
-# Limit CPU threads
+# Limit CPU threads for Render
 torch.set_num_threads(1)
 
-# Initialize Flask
+# Initialize Flask app
 app = Flask(__name__)
 
 # Auto-create folders
@@ -17,14 +17,14 @@ MODELS_DIR = "models"
 os.makedirs(STATIC_DIR, exist_ok=True)
 os.makedirs(MODELS_DIR, exist_ok=True)
 
-# Model path
+# YOLO model path
 MODEL_PATH = os.path.join(MODELS_DIR, "yolov8n.pt")
-model = None  # Lazy-load
+model = None  # Lazy load
 
 def load_model():
     global model
     if model is None:
-        # Download YOLOv8n if missing
+        # Download YOLOv8n weights if missing
         if not os.path.isfile(MODEL_PATH):
             print("Downloading YOLOv8n weights...")
             url = "https://github.com/ultralytics/assets/releases/download/v8.4.0/yolov8n.pt"
@@ -39,7 +39,7 @@ def load_model():
 def index():
     try:
         if request.method == "POST":
-            # Check for uploaded file
+            # Check file upload
             if "image" not in request.files:
                 return "No file uploaded"
             file = request.files["image"]
@@ -50,20 +50,20 @@ def index():
             input_path = os.path.join(STATIC_DIR, "input.jpg")
             file.save(input_path)
 
-            # Load model
+            # Load YOLO model
             yolo_model = load_model()
 
             # Run detection
             results = yolo_model.predict(input_path, imgsz=320, device="cpu")
             result_img = results[0].plot()
 
-            # Detect person and motorcycle
+            # Check for person and motorcycle
             boxes = results[0].boxes.cls.tolist()
             labels = results[0].names
             person = any(labels[int(c)] == "person" for c in boxes)
             bike = any(labels[int(c)] == "motorcycle" for c in boxes)
 
-            # Add warning text
+            # Add warning text if both detected
             if person and bike:
                 cv2.putText(
                     result_img,
@@ -81,6 +81,7 @@ def index():
 
             return render_template("index.html", image="result.jpg")
 
+        # GET request
         return render_template("index.html", image=None)
 
     except Exception as e:
