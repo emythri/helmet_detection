@@ -8,10 +8,10 @@ import urllib.request
 # Limit CPU threads
 torch.set_num_threads(1)
 
-# Initialize app
+# Initialize Flask app
 app = Flask(__name__)
 
-# Folders (created automatically if missing)
+# Automatically create required folders
 STATIC_DIR = "static"
 MODELS_DIR = "models"
 os.makedirs(STATIC_DIR, exist_ok=True)
@@ -19,7 +19,7 @@ os.makedirs(MODELS_DIR, exist_ok=True)
 
 # Model path
 MODEL_PATH = os.path.join(MODELS_DIR, "yolov8n.pt")
-model = None  # lazy load
+model = None  # Lazy-loaded model
 
 def load_model():
     global model
@@ -39,25 +39,25 @@ def load_model():
 def index():
     try:
         if request.method == "POST":
-            # Check file upload
+            # Check for uploaded file
             if "image" not in request.files:
                 return "No file uploaded"
             file = request.files["image"]
             if file.filename == "":
                 return "No selected file"
 
-            # Save input
+            # Save uploaded file
             input_path = os.path.join(STATIC_DIR, "input.jpg")
             file.save(input_path)
 
-            # Load YOLO model (lazy)
+            # Lazy-load model
             yolo_model = load_model()
 
             # Run detection
             results = yolo_model.predict(input_path, imgsz=320, device="cpu")
             result_img = results[0].plot()
 
-            # Extract boxes
+            # Check for person and motorcycle
             boxes = results[0].boxes.cls.tolist()
             labels = results[0].names
 
@@ -70,7 +70,7 @@ def index():
                 if name == "motorcycle":
                     bike = True
 
-            # Add warning if both detected
+            # Add warning text if both detected
             if person and bike:
                 cv2.putText(
                     result_img,
@@ -82,7 +82,7 @@ def index():
                     3
                 )
 
-            # Save result
+            # Save result image
             result_path = os.path.join(STATIC_DIR, "result.jpg")
             cv2.imwrite(result_path, result_img)
 
@@ -96,7 +96,5 @@ def index():
         return f"Error occurred: {e}"
 
 if __name__ == "__main__":
-    # Bind to Render port
-    import os
-    port = int(os.environ.get("PORT", 5000))
-    app.run(host="0.0.0.0", port=port)
+    # Gunicorn will handle the port binding, so just run app
+    app.run(host="0.0.0.0")
