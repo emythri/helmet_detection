@@ -3,72 +3,59 @@ from ultralytics import YOLO
 import os
 import cv2
 import torch
-import urllib.request
 
-# Limit CPU threads for Render
+# Limit CPU usage for Render free tier
 torch.set_num_threads(1)
+os.environ["OMP_NUM_THREADS"] = "1"
 
-# Initialize Flask app
 app = Flask(__name__)
 
-# Auto-create folders
-STATIC_DIR = "static"
-MODELS_DIR = "models"
-os.makedirs(STATIC_DIR, exist_ok=True)
-os.makedirs(MODELS_DIR, exist_ok=True)
+# Use /tmp for writable storage in Render
+UPLOAD_FOLDER = "/tmp"
+INPUT_PATH = os.path.join(UPLOAD_FOLDER, "input.jpg")
+RESULT_PATH = os.path.join(UPLOAD_FOLDER, "result.jpg")
 
-# YOLO model path
-MODEL_PATH = os.path.join(MODELS_DIR, "yolov8n.pt")
-model = None  # Lazy load
+# Model path
+MODEL_PATH = "models/yolov8n.pt"
 
-def load_model():
-    global model
-    if model is None:
-        # Download YOLOv8n weights if missing
-        if not os.path.isfile(MODEL_PATH):
-            print("Downloading YOLOv8n weights...")
-            url = "https://github.com/ultralytics/assets/releases/download/v8.4.0/yolov8n.pt"
-            urllib.request.urlretrieve(url, MODEL_PATH)
-            print("Download complete!")
-        print("Loading YOLO model...")
-        model = YOLO(MODEL_PATH)
-        print("YOLO model loaded successfully")
-    return model
+# Load YOLO model once
+print("Loading YOLO model...")
+model = YOLO(MODEL_PATH)
+print("Model loaded successfully!")
 
 @app.route("/", methods=["GET", "POST"])
 def index():
     try:
         if request.method == "POST":
-            # Check file upload
+
             if "image" not in request.files:
                 return "No file uploaded"
+
             file = request.files["image"]
+
             if file.filename == "":
                 return "No selected file"
 
-            # Save uploaded file
-            input_path = os.path.join(STATIC_DIR, "input.jpg")
-            file.save(input_path)
-
-            # Load YOLO model
-            yolo_model = load_model()
+            # Save uploaded image
+            file.save(INPUT_PATH)
 
             # Run detection
-            results = yolo_model.predict(input_path, imgsz=320, device="cpu")
+            results = model.predict(INPUT_PATH, imgsz=320, device="cpu")
             result_img = results[0].plot()
 
-            # Check for person and motorcycle
+            # Check detections
             boxes = results[0].boxes.cls.tolist()
             labels = results[0].names
-            person = any(labels[int(c)] == "person" for c in boxes)
-            bike = any(labels[int(c)] == "motorcycle" for c in boxes)
 
-            # Add warning text if both detected
-            if person and bike:
+            person_detected = any(labels[int(c)] == "person" for c in boxes)
+            bike_detected = any(labels[int(c)] == "motorcycle" for c in boxes)
+
+            # Add warning if both present
+            if person_detected and bike_detected:
                 cv2.putText(
                     result_img,
                     "Possible No Helmet Rider",
-                    (50, 50),
+                    (40, 50),
                     cv2.FONT_HERSHEY_SIMPLEX,
                     1,
                     (0, 0, 255),
@@ -76,18 +63,21 @@ def index():
                 )
 
             # Save result
-            result_path = os.path.join(STATIC_DIR, "result.jpg")
-            cv2.imwrite(result_path, result_img)
+            cv2.imwrite(RESULT_PATH, result_img)
 
             return render_template("index.html", image="result.jpg")
 
-        # GET request
         return render_template("index.html", image=None)
 
     except Exception as e:
         print("ERROR:", e)
         return f"Error occurred: {e}"
 
+# Route to display result image from /tmp
+@app.route("/result.jpg")
+def result_image():
+    from flask import send_file
+    return send_file(RESULT_PATH, mimetype="image/jpeg")
+
 if __name__ == "__main__":
-    # Gunicorn will handle the port on Render
-    app.run(host="0.0.0.0")
+    app.run(host="0.0.0.0", port=5000)
