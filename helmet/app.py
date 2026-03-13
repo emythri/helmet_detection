@@ -8,10 +8,13 @@ app = Flask(__name__)
 # Ensure static folder exists
 os.makedirs("static", exist_ok=True)
 
-model = YOLO("yolov8n.pt")
+model = None   # Load model later
 
-@app.route("/", methods=["GET","POST"])
+
+@app.route("/", methods=["GET", "POST"])
 def index():
+
+    global model
 
     if request.method == "POST":
 
@@ -25,6 +28,10 @@ def index():
 
         filepath = os.path.join("static", "input.jpg")
         file.save(filepath)
+
+        # Load YOLO model only when needed
+        if model is None:
+            model = YOLO("yolov8n.pt")
 
         results = model(filepath)
 
@@ -48,10 +55,10 @@ def index():
             cv2.putText(
                 img,
                 "Possible No Helmet Rider",
-                (50,50),
+                (50, 50),
                 cv2.FONT_HERSHEY_SIMPLEX,
                 1,
-                (0,0,255),
+                (0, 0, 255),
                 3
             )
 
@@ -61,6 +68,7 @@ def index():
         return render_template("index.html", image="result.jpg")
 
     return render_template("index.html", image=None)
+
 
 if __name__ == "__main__":
     app.run(debug=True)
