@@ -2,13 +2,17 @@ from flask import Flask, render_template, request
 from ultralytics import YOLO
 import cv2
 import os
+import torch
+
+# Reduce CPU threads (important for Render free plan)
+torch.set_num_threads(1)
 
 app = Flask(__name__)
 
 # Ensure static folder exists
 os.makedirs("static", exist_ok=True)
 
-model = None   # Load model later
+model = None  # Load model only when needed
 
 
 @app.route("/", methods=["GET", "POST"])
@@ -26,14 +30,16 @@ def index():
         if file.filename == "":
             return "No selected file"
 
-        filepath = os.path.join("static", "input.jpg")
-        file.save(filepath)
+        # Save uploaded image
+        input_path = os.path.join("static", "input.jpg")
+        file.save(input_path)
 
         # Load YOLO model only when needed
         if model is None:
             model = YOLO("yolov8n.pt")
 
-        results = model(filepath)
+        # Run detection
+        results = model(input_path)
 
         img = results[0].plot()
 
@@ -48,9 +54,11 @@ def index():
 
             if name == "person":
                 person = True
+
             if name == "motorcycle":
                 bike = True
 
+        # Display warning
         if person and bike:
             cv2.putText(
                 img,
