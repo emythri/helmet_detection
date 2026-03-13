@@ -1,8 +1,12 @@
 from flask import Flask, render_template, request
 from ultralytics import YOLO
 import cv2
+import os
 
 app = Flask(__name__)
+
+# Ensure static folder exists
+os.makedirs("static", exist_ok=True)
 
 model = YOLO("yolov8n.pt")
 
@@ -11,8 +15,15 @@ def index():
 
     if request.method == "POST":
 
+        if "image" not in request.files:
+            return "No file uploaded"
+
         file = request.files["image"]
-        filepath = "static/input.jpg"
+
+        if file.filename == "":
+            return "No selected file"
+
+        filepath = os.path.join("static", "input.jpg")
         file.save(filepath)
 
         results = model(filepath)
@@ -20,7 +31,6 @@ def index():
         img = results[0].plot()
 
         boxes = results[0].boxes.cls.tolist()
-
         labels = results[0].names
 
         person = False
@@ -35,15 +45,18 @@ def index():
                 bike = True
 
         if person and bike:
-            cv2.putText(img,
-                        "Possible No Helmet Rider",
-                        (50,50),
-                        cv2.FONT_HERSHEY_SIMPLEX,
-                        1,
-                        (0,0,255),
-                        3)
+            cv2.putText(
+                img,
+                "Possible No Helmet Rider",
+                (50,50),
+                cv2.FONT_HERSHEY_SIMPLEX,
+                1,
+                (0,0,255),
+                3
+            )
 
-        cv2.imwrite("static/result.jpg", img)
+        result_path = os.path.join("static", "result.jpg")
+        cv2.imwrite(result_path, img)
 
         return render_template("index.html", image="result.jpg")
 
