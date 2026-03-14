@@ -40,7 +40,7 @@ def index():
             file.save(INPUT_PATH)
 
             # Run detection
-            results = model.predict(INPUT_PATH, imgsz=320, device="cpu")
+            results = model.predict(INPUT_PATH, imgsz=128, device="cpu")
             result_img = results[0].plot()
 
             # Check detections
