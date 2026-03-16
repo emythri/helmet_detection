@@ -8,7 +8,8 @@ import torch
 torch.set_num_threads(1)
 os.environ["OMP_NUM_THREADS"] = "1"
 
-app = Flask(__name__)
+# Flask app with explicit template folder
+app = Flask(__name__, template_folder='templates')  # Relative to helmet/ root
 
 # Writable directory for Render
 UPLOAD_FOLDER = "/tmp"
@@ -21,6 +22,10 @@ MODEL_PATH = "yolov8n.pt"
 # Lazy loading model (prevents startup crash)
 model = None
 
+ALLOWED_EXTENSIONS = {'jpg', 'jpeg', 'png', 'gif'}
+
+def allowed_file(filename):
+    return '.' in filename and filename.rsplit('.', 1)[1].lower() in ALLOWED_EXTENSIONS
 
 @app.route("/", methods=["GET", "POST"])
 def index():
@@ -36,6 +41,9 @@ def index():
 
             if file.filename == "":
                 return "No selected file"
+            
+            if not allowed_file(file.filename):
+                return "Invalid file format. Please upload an image file."
 
             # Save uploaded image
             file.save(INPUT_PATH)
@@ -75,8 +83,10 @@ def index():
 
             # Warning text
             if person_detected and bike_detected:
+                # Convert BGR to RGB if needed
+                result_img_bgr = cv2.cvtColor(result_img, cv2.COLOR_RGB2BGR)
                 cv2.putText(
-                    result_img,
+                    result_img_bgr,
                     "Possible No Helmet Rider",
                     (40, 50),
                     cv2.FONT_HERSHEY_SIMPLEX,
@@ -84,17 +94,21 @@ def index():
                     (0, 0, 255),
                     3
                 )
+                result_img = result_img_bgr
 
-            # Save result image
-            cv2.imwrite(RESULT_PATH, result_img)
+            # Save result image in BGR format for OpenCV
+            if not cv2.imwrite(RESULT_PATH, cv2.cvtColor(result_img, cv2.COLOR_RGB2BGR)):
+                return "Failed to save result image"
 
             return render_template("index.html", image="result.jpg")
 
         return render_template("index.html", image=None)
 
     except Exception as e:
-        print("ERROR:", e)
-        return f"Error occurred: {e}"
+        print("ERROR:", str(e))
+        import traceback
+        traceback.print_exc()
+        return f"Error occurred: {str(e)}"
 
 
 @app.route("/result.jpg")
